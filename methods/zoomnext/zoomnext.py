@@ -58,6 +58,28 @@ class _ZoomNeXt_Base(nn.Module):
             ual_loss = ual_coef * (1 - (2 * prob - 1).abs().pow(2)).mean()
             losses.append(ual_loss)
             loss_str.append(f"powual_{ual_coef:.5f}: {ual_loss.item():.5f}")
+
+            # === Added: Dice loss ===
+            eps = 1e-6
+            targets = mask.float()
+            # probs_flat = prob.view(prob.size(0), -1)
+            # targets_flat = targets.view(targets.size(0), -1)
+            # intersection = (probs_flat * targets_flat).sum(dim=1)
+            # dice_score = (2 * intersection + eps) / (probs_flat.sum(dim=1) + targets_flat.sum(dim=1) + eps)
+            # dice_loss = 1.0 - dice_score.mean()
+            # losses.append(dice_loss)
+            # loss_str.append(f"dice: {dice_loss.item():.5f}")
+
+            # === Added: Boundary-Aware loss (Laplacian-based) ===
+            # This encourages predicted edges to match target edges (improves mask crispness).
+            lap = torch.tensor([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=logits.dtype, device=logits.device).unsqueeze(0).unsqueeze(0)
+            pred_edge = F.conv2d(F.pad(prob, (1, 1, 1, 1), mode="replicate"), lap)
+            target_edge = F.conv2d(F.pad(targets, (1, 1, 1, 1), mode="replicate"), lap)
+            bound_loss = F.l1_loss(pred_edge.abs(), target_edge.abs())
+            bound_weight = 0.5
+            losses.append(bound_weight * bound_loss)
+            loss_str.append(f"bound: {(bound_weight * bound_loss).item():.5f}")
+
             return dict(vis=dict(sal=prob), loss=sum(losses), loss_str=" ".join(loss_str))
         else:
             return logits

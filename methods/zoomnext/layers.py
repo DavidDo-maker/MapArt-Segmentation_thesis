@@ -146,6 +146,12 @@ class MHSIU(nn.Module):
         self.conv_m = ConvBNReLU(in_dim, in_dim, 3, 1, 1)  # intra-branch
         self.conv_s = ConvBNReLU(in_dim, in_dim, 3, 1, 1)  # intra-branch
 
+        # These 1x1 convs produce a per-channel gating map for each branch (sigmoid to [0,1])
+        self.gate_l = nn.Conv2d(in_dim, in_dim, kernel_size=1, bias=True)
+        self.gate_m = nn.Conv2d(in_dim, in_dim, kernel_size=1, bias=True)
+        self.gate_s = nn.Conv2d(in_dim, in_dim, kernel_size=1, bias=True)
+        self.sigmoid_gate = nn.Sigmoid()
+
         self.conv_lms = ConvBNReLU(3 * in_dim, 3 * in_dim, 1)  # inter-branch
         self.initial_merge = ConvBNReLU(3 * in_dim, 3 * in_dim, 1)  # inter-branch
 
@@ -168,6 +174,19 @@ class MHSIU(nn.Module):
         l = self.conv_l(l)
         m = self.conv_m(m)
         s = self.conv_s(s)
+
+        # compute per-branch gates (per-channel, per-spatial location)
+        gl = self.sigmoid_gate(self.gate_l(l))
+        gm = self.sigmoid_gate(self.gate_m(m))
+        gs = self.sigmoid_gate(self.gate_s(s))
+
+        # gate each branch (elementwise). This lets the network suppress or amplify
+        # contributions from each scale at each spatial location.
+        l = l * gl
+        m = m * gm
+        s = s * gs
+
+        # then concatenate as before
         lms = torch.cat([l, m, s], dim=1)  # BT,3C,H,W
 
         attn = self.conv_lms(lms)  # BT,3C,H,W
