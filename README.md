@@ -74,7 +74,7 @@ pip install torchvision==0.16.2
 
 The dataset and pre-trained model weights are hosted on Google Drive:
 
-**📁 [Download datasets and weights from Google Drive](https://drive.google.com/drive/folders/196Kx_yLe93HC95nmomP4x83_9seBgALh?usp=drive_link)**
+**📁 [Download datasets and weights from Google Drive](https://drive.google.com/drive/folders/196Kx_yLe93HC95nmomP4x83_9seBgALh)**
 
 After downloading the `datasets and weight` zip file:
 
